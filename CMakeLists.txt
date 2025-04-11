@@ -28,48 +28,84 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(rapidyaml)
 
-# Define source files
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+# GoogleTest
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.16.0
+)
+FetchContent_MakeAvailable(googletest)
+enable_testing()
 
-# Targets
-add_executable(othelloplayer ${SOURCES})
+# ==== Source Files ====
+
+# Shared engine files (used across multiple targets)
+set(ENGINE_SOURCES
+  src/othello/board.cpp
+  # Add more shared files later (e.g., src/agent/agent.cpp, etc.)
+)
+
+# Files specific to othelloplayer binary
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+set(OTHELLOPLAYER_SOURCES ${SOURCES})
+list(REMOVE_ITEM OTHELLOPLAYER_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/train.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_agent.cpp
+)
+
+# ==== Targets ====
+
+# Core engine library
+add_library(othello_engine STATIC ${ENGINE_SOURCES})
+target_include_directories(othello_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Main executable (uses engine)
+add_executable(othelloplayer ${OTHELLOPLAYER_SOURCES})
 add_dependencies(othelloplayer embed_weights)
 target_include_directories(othelloplayer PRIVATE ${CMAKE_BINARY_DIR}/generated)
-
-add_executable(train src/train.cpp)
-target_link_libraries(train
-  PRIVATE
-    OpenCL::OpenCL
-    spdlog::spdlog
-    ryml
-)
-
-# Add include directories
-target_include_directories(othelloplayer
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${rapidyaml_SOURCE_DIR}/src
-)
-
-target_include_directories(train
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${rapidyaml_SOURCE_DIR}/src
-)
-
-# Link libraries
+target_include_directories(othelloplayer PRIVATE ${rapidyaml_SOURCE_DIR}/src)
 target_link_libraries(othelloplayer
   PRIVATE
+    othello_engine
     OpenCL::OpenCL
     spdlog::spdlog
     ryml
 )
 
-# Paths
-set(MODEL_INPUT ${CMAKE_SOURCE_DIR}/model/weights.bin)
-set(MODEL_HEADER ${CMAKE_BINARY_DIR}/generated/weights.hpp)
+# Remote agent
+add_executable(remote_agent src/remote_agent.cpp)
+target_link_libraries(remote_agent PRIVATE othello_engine)
 
+# Unit tests
+file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
+add_executable(othello_tests ${TEST_SOURCES})
+target_include_directories(othello_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(othello_tests
+  PRIVATE
+    othello_engine
+    gtest_main
+)
+
+include(GoogleTest)
+gtest_discover_tests(othello_tests)
+
+# Training binary
+add_executable(train src/train.cpp)
+target_include_directories(train PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${rapidyaml_SOURCE_DIR}/src)
+target_link_libraries(train
+  PRIVATE
+    othello_engine
+    OpenCL::OpenCL
+    spdlog::spdlog
+    ryml
+)
+
+# Embed tool
 add_executable(embed_model tools/embed_model.cpp)
+
+# Embed model command
+set(MODEL_INPUT ${CMAKE_SOURCE_DIR}/weights/weights.bin)
+set(MODEL_HEADER ${CMAKE_BINARY_DIR}/generated/weights.hpp)
 
 add_custom_command(
   OUTPUT ${MODEL_HEADER}
@@ -78,6 +114,5 @@ add_custom_command(
   COMMENT "Embedding weights into header"
 )
 
-# Ensure the header is generated before building the main app
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated)
 add_custom_target(embed_weights DEPENDS ${MODEL_HEADER})
