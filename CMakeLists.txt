@@ -12,7 +12,16 @@ find_package(OpenCL REQUIRED)
 # rapidyaml and spdlog via FetchContent
 include(FetchContent)
 
+# fmt
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 10.2.1 # or the version your spdlog expects
+)
+FetchContent_MakeAvailable(fmt)
+
 # spdlog
+set(SPDLOG_FMT_EXTERNAL ON CACHE BOOL "" FORCE)
 FetchContent_Declare(
   spdlog
   GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -82,15 +91,9 @@ add_dependencies(generated_headers generate_headers)
 # Shared engine files (used across multiple targets)
 set(ENGINE_SOURCES
   src/othello/board.cpp
-  # Add more shared files later (e.g., src/agent/agent.cpp, etc.)
-)
-
-# Files specific to othelloplayer binary
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
-set(OTHELLOPLAYER_SOURCES ${SOURCES})
-list(REMOVE_ITEM OTHELLOPLAYER_SOURCES
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/train.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_agent.cpp
+  src/opencl/context.cpp
+  src/model/inference_model.cpp
+  # Add more shared files later
 )
 
 # ==== Targets ====
@@ -102,7 +105,7 @@ target_include_directories(othello_engine PUBLIC ${CMAKE_BINARY_DIR})
 add_dependencies(othello_engine generated_headers)
 
 # Main executable (uses engine)
-add_executable(othelloplayer ${OTHELLOPLAYER_SOURCES})
+add_executable(othelloplayer src/main.cpp)
 target_include_directories(othelloplayer PRIVATE ${rapidyaml_SOURCE_DIR}/src)
 target_include_directories(othelloplayer PRIVATE ${CMAKE_BINARY_DIR})
 add_dependencies(othelloplayer generated_headers)
@@ -111,6 +114,7 @@ target_link_libraries(othelloplayer
     othello_engine
     OpenCL::OpenCL
     spdlog::spdlog
+    fmt::fmt
     ryml
     generated_headers
 )
@@ -134,6 +138,9 @@ add_dependencies(othello_tests generated_headers)
 target_link_libraries(othello_tests
   PRIVATE
     othello_engine
+    OpenCL::OpenCL
+    spdlog::spdlog
+    fmt::fmt
     gtest_main
     generated_headers
 )
@@ -151,6 +158,7 @@ target_link_libraries(train
     othello_engine
     OpenCL::OpenCL
     spdlog::spdlog
+    fmt::fmt
     ryml
     generated_headers
 )
