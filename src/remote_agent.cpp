@@ -52,15 +52,24 @@ int main(int argc, char* argv[]) {
     const std::string color = (side == BLACK) ? "Black" : "White";
 
     // Connect to remote RL agent
-    int sockfd = connectToAgent(std::string(REMOTE_ADDR), REMOTE_PORT); // adjust port as needed
+    int sockfd = connectToAgent(std::string(REMOTE_ADDR), REMOTE_PORT);
 
+    // Send the side once after connecting
+    std::string side_msg = color + "\n";
+    if (send(sockfd, side_msg.c_str(), side_msg.size(), 0) < 0) {
+        perror("ERROR sending side to agent");
+        return 1;
+    }
+
+    // Init done signal to Java wrapper
     std::cout << "Init done" << std::endl;
     std::cout.flush();
 
+    // Main game loop
     int moveX, moveY, msLeft;
     while (std::cin >> moveX >> moveY >> msLeft) {
         std::ostringstream msg;
-        msg << moveX << " " << moveY << " " << msLeft << " " << color << "\n";
+        msg << moveX << " " << moveY << " " << msLeft << std::endl;;
         std::string msgStr = msg.str();
 
         // Send to remote agent
@@ -77,10 +86,10 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        std::string response(buffer);
-        std::istringstream respStream(response);
         int x, y;
+        std::istringstream respStream((std::string(buffer))); // Double parenthesis to mitigate aggressive intellisense; C++ spec is vague
         respStream >> x >> y;
+
         std::cout << x << " " << y << std::endl;
         std::cout.flush();
     }
