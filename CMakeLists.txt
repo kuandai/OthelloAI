@@ -103,6 +103,11 @@ add_library(othello_engine STATIC ${ENGINE_SOURCES})
 target_include_directories(othello_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(othello_engine PUBLIC ${CMAKE_BINARY_DIR})
 add_dependencies(othello_engine generated_headers)
+target_link_libraries(othello_engine
+  PUBLIC
+    fmt::fmt
+    spdlog::spdlog
+)
 
 # Main executable (uses engine)
 add_executable(othelloplayer src/main.cpp)
