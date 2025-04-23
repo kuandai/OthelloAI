@@ -10,8 +10,13 @@
 
 enum Side { BLACK, WHITE };
 
-static char REMOTE_ADDR[] = "127.0.0.1";
-static int  REMOTE_PORT = 4000;
+const char REMOTE_ADDR[] = "127.0.0.1";
+const int  REMOTE_PORT = 4000;
+#ifdef _WIN32
+constexpr bool WIN32_BUILD = true;
+#else
+constexpr bool WIN32_BUILD = false;
+#endif
 
 int connectToAgent(const std::string& hostname, int port) {
     int sockfd;
@@ -43,16 +48,51 @@ int connectToAgent(const std::string& hostname, int port) {
 }
 
 int main(int argc, char* argv[]) {
+    #ifdef _WIN32
+    try {
+        // Retrieve WSL Address
+        std::array<char, 128> buffer;
+        std::string wsl_addr;
+
+        // Use a pipe to run the shell command
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("wsl hostname -I", "r"), pclose);
+        if (!pipe) {
+            throw std::runtime_error("Failed to run wsl hostname -I");
+        }
+
+        // Read the command output
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            wsl_addr += buffer.data();
+        }
+
+        // Remove any trailing newline
+        wsl_addr.erase(wsl_addr.find_last_not_of(" \n\r\t") + 1);
+    } catch (const std::exception& e) {
+        std::cerr "Unable to retrieve WSL address: " << wsl_addr << std::endl;
+    }
+    #endif
     if (argc != 2) {
         std::cerr << "usage: " << argv[0] << " side" << std::endl;
         return 1;
+    }
+
+    for (int i = 0; i < argc; i++) {
+        if (std::string(argv[i]) == "--version") {
+            std::cerr << "remote_agent compiled for " << (WIN32_BUILD ? "WIN32" : "Unix") << std::endl;
+	    return 0;
+	}
     }
 
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
     const std::string color = (side == BLACK) ? "Black" : "White";
 
     // Connect to remote RL agent
+    #ifdef _WIN32
+    int sockfd = connectToAgent(wsl_addr, REMOTE_PORT);
+    #endif
+    #ifndef _WIN32
     int sockfd = connectToAgent(std::string(REMOTE_ADDR), REMOTE_PORT);
+    #endif
 
     // Send the side once after connecting
     std::string side_msg = color + "\n";
