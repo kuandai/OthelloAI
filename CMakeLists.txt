@@ -92,7 +92,7 @@ add_dependencies(generated_headers generate_headers)
 set(ENGINE_SOURCES
   src/othello/board.cpp
   src/opencl/context.cpp
-  src/model/inference_model.cpp
+  src/replay/buffer.cpp
   # Add more shared files later
 )
 
