@@ -30,7 +30,7 @@ void run_agent_server(int port) {
     int side_bytes = read(client_fd, side_buf, sizeof(side_buf) - 1);
     std::string side_str(side_buf);
     Player my_side = (side_str.find("White") != std::string::npos) ? Player::WHITE : Player::BLACK;
-    Player opp_side = opponent(my_side);
+    Player opp_side = othello::opponent(my_side);
     spdlog::info("Assigned side: {}", (my_side == Player::BLACK ? "Black" : "White"));
 
     // Init the board and model
