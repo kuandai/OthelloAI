@@ -16,8 +16,15 @@ void run_agent_server(int port) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
 
-    bind(server_fd, (struct sockaddr*)&address, sizeof(address));
-    listen(server_fd, 1);
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        return;
+    }
+    if (listen(server_fd, 1) < 0) {
+        perror("listen failed");
+        return;
+    }
+
     spdlog::info("Agent server listening on port {}...", port);
 
     sockaddr_in client_addr{};
@@ -41,11 +48,17 @@ void run_agent_server(int port) {
     while (true) {
         std::memset(buffer, 0, sizeof(buffer));
         int bytes = read(client_fd, buffer, sizeof(buffer) - 1);
-        if (bytes <= 0) break;
+        if (bytes == 0) {
+            spdlog::info("Client disconnected.");
+            break;
+        }
 
         int x, y, ms;
         std::istringstream input(buffer);
-        input >> x >> y >> ms;
+        if (!(input >> x >> y >> ms)) {
+            spdlog::error("Malformed input received: {}", buffer);
+            break;
+        }
         spdlog::info("Received opponent move: {} {} ({} ms left)", x, y, ms); // Server does validation
 
         if (x >= 0 && y >= 0) {
