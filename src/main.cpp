@@ -7,7 +7,6 @@
 #include <spdlog/spdlog.h>
 
 #include "othello/board.hpp"
-#include "model/inference_model.hpp"
 
 void run_agent_server(int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -42,7 +41,7 @@ void run_agent_server(int port) {
 
     // Init the board and model
     OthelloBoard board;
-    InferenceModel model;
+    //InferenceModel model;
 
     char buffer[128];
     while (true) {

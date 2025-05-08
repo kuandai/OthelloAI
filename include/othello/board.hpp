@@ -11,8 +11,13 @@ struct Move {
 };
 
 namespace othello {
-    inline int to_index(int x, int y);
-    inline Player opponent(Player player);
+    inline int to_index(int x, int y) {
+        return y * 8 + x;
+    }
+
+    inline Player opponent(Player player) {
+        return player == Player::BLACK ? Player::WHITE : Player::BLACK;
+    }
 } // namespace othello
 
 class OthelloBoard {

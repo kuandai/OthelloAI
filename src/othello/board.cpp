@@ -7,16 +7,6 @@ namespace {
     const int DY[8] = {-1, 0, 1, 1, 1, 0, -1, -1};
 } // Anonymous namespace
 
-namespace othello {
-    inline int to_index(int x, int y) {
-        return y * 8 + x;
-    }
-
-    inline Player opponent(Player player) {
-        return player == Player::BLACK ? Player::WHITE : Player::BLACK;
-    }
-} // namespace othello
-
 OthelloBoard::OthelloBoard() {
     black_ = (1ULL << othello::to_index(4, 3)) | (1ULL << othello::to_index(3, 4));
     white_ = (1ULL << othello::to_index(3, 3)) | (1ULL << othello::to_index(4, 4));
