@@ -3,10 +3,19 @@
 #include <sstream>
 #include <cstdlib>
 #include <cstring>
+#ifdef _WIN32
+#include <stdio.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <array>
+#include <memory>
+#pragma comment(lib, "ws2_32.lib")
+#else
 #include <unistd.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#endif
 
 enum Side { BLACK, WHITE };
 
@@ -19,6 +28,15 @@ constexpr bool WIN32_BUILD = false;
 #endif
 
 int connectToAgent(const std::string& hostname, int port) {
+    #ifdef _WIN32
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
+        std::cerr << "WSAStartup failed.\n";
+        exit(1);
+    }
+    #endif
+
     int sockfd;
     struct sockaddr_in serv_addr;
     struct hostent* server = gethostbyname(hostname.c_str());
@@ -49,10 +67,10 @@ int connectToAgent(const std::string& hostname, int port) {
 
 int main(int argc, char* argv[]) {
     #ifdef _WIN32
+    // Retrieve WSL Address
+    std::array<char, 128> buffer;
+    std::string wsl_addr;
     try {
-        // Retrieve WSL Address
-        std::array<char, 128> buffer;
-        std::string wsl_addr;
 
         // Use a pipe to run the shell command
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("wsl hostname -I", "r"), pclose);
@@ -68,7 +86,7 @@ int main(int argc, char* argv[]) {
         // Remove any trailing newline
         wsl_addr.erase(wsl_addr.find_last_not_of(" \n\r\t") + 1);
     } catch (const std::exception& e) {
-        std::cerr "Unable to retrieve WSL address: " << wsl_addr << std::endl;
+        std::cerr << "Unable to retrieve WSL address: " << wsl_addr << std::endl;
     }
     #endif
     if (argc != 2) {
@@ -134,6 +152,12 @@ int main(int argc, char* argv[]) {
         std::cout.flush();
     }
 
+    #ifdef _WIN32
+    closesocket(sockfd);
+    WSACleanup();
+    #else
     close(sockfd);
+    #endif
+
     return 0;
 }

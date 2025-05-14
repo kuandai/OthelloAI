@@ -128,11 +128,6 @@ target_link_libraries(othelloplayer
 add_executable(remote_agent src/remote_agent.cpp)
 target_include_directories(remote_agent PRIVATE ${CMAKE_BINARY_DIR})
 add_dependencies(remote_agent generated_headers)
-target_link_libraries(remote_agent 
-  PRIVATE 
-    othello_engine
-    generated_headers
-)
 
 # Unit tests
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS tests/*.cpp)
