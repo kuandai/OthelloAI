@@ -3,3 +3,4 @@ build/
 weights/
 .clangd
 .cache/
+.DS_Store

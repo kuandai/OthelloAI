@@ -1,6 +1,6 @@
 #pragma once
 
-#include <CL/cl.h>
+#include "cl.h"
 #include <string>
 
 class OpenCLContext {

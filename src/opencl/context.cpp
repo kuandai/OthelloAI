@@ -27,7 +27,11 @@ OpenCLContext::OpenCLContext() {
     spdlog::info("OpenCL context created successfully");
 
     // Command queue
+    #ifdef CL_VERSION_2_0
     queue_ = clCreateCommandQueueWithProperties(context_, device_, nullptr, &err);
+    #else
+    queue_ = clCreateCommandQueue(context_, device_, 0, &err);
+    #endif
 }
 
 OpenCLContext::~OpenCLContext() {
