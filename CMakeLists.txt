@@ -91,6 +91,7 @@ add_dependencies(generated_headers generate_headers)
 # Shared engine files (used across multiple targets)
 set(ENGINE_SOURCES
   src/othello/board.cpp
+  src/othello/mcts.cpp
   src/opencl/context.cpp
   src/replay/buffer.cpp
   # Add more shared files later

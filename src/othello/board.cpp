@@ -146,10 +146,9 @@ int OthelloBoard::flip_disks(Player player, int x, int y) {
     return __builtin_popcountll(flipped_mask);
 }
 
-
-
 bool OthelloBoard::has_valid_move(Player player) const {
-    return !get_valid_moves(player).empty();
+    const auto& moves = get_valid_moves(player);
+    return !(moves.size() == 1 && moves[0] == othello::PASS);
 }
 
 bool OthelloBoard::is_game_over() const {
