@@ -11,6 +11,10 @@
 void run_agent_server(int port) {
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     sockaddr_in address{};
+    // Set SO_REUSEADDR to reuse the port immediately after closing
+    int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    // Bind to the port
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
@@ -39,9 +43,8 @@ void run_agent_server(int port) {
     Player opp_side = othello::opponent(my_side);
     spdlog::info("Assigned side: {}", (my_side == Player::BLACK ? "Black" : "White"));
 
-    // Init the board and model
+    // Init the board
     OthelloBoard board;
-    //InferenceModel model;
 
     char buffer[128];
     while (true) {
@@ -71,9 +74,8 @@ void run_agent_server(int port) {
             continue;
         }
 
-        Move bestMove = Move(0, 0);
-
-        // TODO: Determine best move
+        // Run MCTS to choose the best move
+        Move bestMove = board.get_valid_moves(my_side)[0];
 
         board.apply_move(my_side, bestMove);
         spdlog::info("Sending move: {} {}", bestMove.x, bestMove.y);
