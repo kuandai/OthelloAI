@@ -1,6 +1,7 @@
 #include "othello/board.hpp"
 #include <vector>
 #include <algorithm>
+#include <stdexcept>
 
 namespace {
     const int DX[8] = {-1, -1, -1, 0, 1, 1, 1, 0};
@@ -25,9 +26,15 @@ Player OthelloBoard::at(int x, int y) const {
 }
 
 bool OthelloBoard::is_valid_move(Player player, int x, int y) const {
+    // Check for forced pass
+    if (x == -1 && y == -1) {
+        // Only valid if the player has no other legal moves
+        return get_valid_moves(player).size() == 1 && get_valid_moves(player)[0] == othello::PASS;
+    }
+
     if (!is_on_board(x, y)) return false;
     int idx = othello::to_index(x, y);
-    if (((black_ | white_) >> idx) & 1) return false;
+    if (((black_ | white_) >> idx) & 1) return false; // Space occupied
 
     Player opp = othello::opponent(player);
     uint64_t self = (player == Player::BLACK) ? black_ : white_;
@@ -52,10 +59,16 @@ std::vector<Move> OthelloBoard::get_valid_moves(Player player) const {
         for (int x = 0; x < 8; ++x)
             if (is_valid_move(player, x, y))
                 moves.emplace_back(x, y);
+    // Forced pass
+    if (moves.empty()) { moves.emplace_back(othello::PASS); }
     return moves;
 }
 
 bool OthelloBoard::apply_move(Player player, const Move& move) {
+    if (move.x == -1 && move.y == -1) {
+        current_player_ = othello::opponent(current_player_);
+        return true;
+    }
     if (!is_valid_move(player, move.x, move.y)) return false;
     int idx = othello::to_index(move.x, move.y);
 
@@ -65,39 +78,75 @@ bool OthelloBoard::apply_move(Player player, const Move& move) {
         white_ |= (1ULL << idx);
 
     flip_disks(player, move.x, move.y);
+    current_player_ = othello::opponent(current_player_);
     return true;
 }
 
+OthelloBoard OthelloBoard::apply_move_copy(Player player, const Move& move) const {
+    OthelloBoard next = *this;  // shallow copy is safe
+    if (!next.apply_move(player, move))
+        throw std::invalid_argument("Invalid move passed to apply_move_copy");
+    return next;
+}
+
 int OthelloBoard::flip_disks(Player player, int x, int y) {
-    int flipped = 0;
-    Player opp = othello::opponent(player);
+    // Create a bitmask for the current move position
+    const uint64_t move_mask = 1ULL << othello::to_index(x, y);
 
+    // This will accumulate all the opponent pieces we flip
+    uint64_t flipped_mask = 0;
+
+    // Choose the bitboards for the current player and opponent
+    uint64_t self = (player == Player::BLACK) ? black_ : white_;
+    uint64_t opp  = (player == Player::BLACK) ? white_ : black_;
+
+    // Loop over all 8 directions
     for (int d = 0; d < 8; ++d) {
-        int nx = x + DX[d], ny = y + DY[d];
-        std::vector<int> path;
+        int dx = DX[d];       // horizontal step
+        int dy = DY[d];       // vertical step
 
-        while (is_on_board(nx, ny) && at(nx, ny) == opp) {
-            path.push_back(othello::to_index(nx, ny));
-            nx += DX[d];
-            ny += DY[d];
-        }
+        int cx = x + dx;      // current x position in this direction
+        int cy = y + dy;      // current y position in this direction
 
-        if (!path.empty() && is_on_board(nx, ny) && at(nx, ny) == player) {
-            for (int idx : path) {
-                if (player == Player::BLACK) {
-                    black_ |= (1ULL << idx);
-                    white_ &= ~(1ULL << idx);
-                } else {
-                    white_ |= (1ULL << idx);
-                    black_ &= ~(1ULL << idx);
-                }
-                ++flipped;
+        uint64_t captured = 0; // bitmask of opponent pieces in this direction
+
+        // Step in the current direction until we hit the board edge
+        while (is_on_board(cx, cy)) {
+            int idx = othello::to_index(cx, cy);    // convert (x,y) to bit index
+            uint64_t bit = 1ULL << idx;             // bitmask of that square
+
+            if (opp & bit) {
+                // Potential to flip
+                captured |= bit;
+            } else if (self & bit) {
+                // Own piece after opponent - confirmed flip
+                flipped_mask |= captured;
+                break;
+            } else {
+                // Empty or no closing piece
+                break;
             }
+
+            // Step to the next square in the same direction
+            cx += dx;
+            cy += dy;
         }
     }
 
-    return flipped;
+    // Update bitboards
+    if (player == Player::BLACK) {
+        black_ |= flipped_mask;          // Set flipped bits to black
+        white_ &= ~flipped_mask;         // Clear those bits from white
+    } else {
+        white_ |= flipped_mask;
+        black_ &= ~flipped_mask;
+    }
+
+    // Return the number of pieces flipped (for debugging or scoring)
+    return __builtin_popcountll(flipped_mask);
 }
+
+
 
 bool OthelloBoard::has_valid_move(Player player) const {
     return !get_valid_moves(player).empty();
@@ -131,7 +180,19 @@ std::vector<float> OthelloBoard::to_tensor(Player current_player) const {
     }
 
     float turn_val = (current_player == Player::BLACK) ? 1.0f : 0.0f;
-    std::fill(tensor.begin() + 128, tensor.end(), turn_val);  // channel 2
+    // channel 2: valid move mask
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            if (is_valid_move(current_player, x, y)) {
+                int idx = y * 8 + x;
+                tensor[128 + idx] = 1.0f;
+            }
+        }
+    }
 
     return tensor;
+}
+
+Player OthelloBoard::current_player() const {
+    return current_player_;
 }
