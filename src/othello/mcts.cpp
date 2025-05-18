@@ -88,12 +88,13 @@ Move MCTS::best_move(bool temperature) {
         // Deterministic: choose move with max visits
         int best_idx = -1;
         int max_visits = -1;
-        for (int i = 0; i < visits.size(); ++i) {
+        for (int i = 0; i < visits.size()-1; ++i) {
             if (visits[i] > max_visits) {
                 max_visits = visits[i];
                 best_idx = i;
             }
         }
+        if (max_visits == 0) { best_idx = 64; } // PASS only valid if no other moves are
         return (best_idx == 64) ? othello::PASS : Move(best_idx % 8, best_idx / 8);
     } else {
         // Stochastic: sample from visit count distribution

@@ -110,6 +110,6 @@ void run_agent_server(int port) {
 int main() {
     spdlog::set_level(spdlog::level::info);
     spdlog::set_pattern("[agent_server] [%^%l%$] %v");
-    run_agent_server(4000);
+    while (1) { run_agent_server(4000); }
     return 0;
 }
